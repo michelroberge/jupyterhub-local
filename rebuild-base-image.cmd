@@ -1,0 +1,1 @@
+ocker build -t my-custom-py-dev:latest -f Dockerfile.spawn .

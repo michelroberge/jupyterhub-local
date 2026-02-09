@@ -1,0 +1,28 @@
+# --- Auth ---
+oauthenticator==17.3.0
+
+# --- Core Data Foundations ---
+numpy==2.4.2
+pandas==3.0.0
+pyarrow==23.0.0
+scipy==1.15.2
+openpyxl==3.1.5
+
+# --- Database & Backend ---
+sqlalchemy==2.0.46
+psycopg[binary]==3.3.2
+python-dotenv==1.0.1
+
+# --- Visualization ---
+matplotlib==3.10.8
+seaborn==0.13.2
+plotly==6.0.0
+
+# --- Machine Learning & Utilities ---
+scikit-learn==1.6.1
+tqdm==4.67.1
+
+# --- Interactive Environment ---
+jupyterlab==4.5.3
+ipykernel==7.2.0
+jupyterhub==5.4.3

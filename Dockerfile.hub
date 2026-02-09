@@ -1,0 +1,23 @@
+FROM jupyterhub/jupyterhub:5.4.3
+
+# 1. Install dependencies
+RUN apt-get update && apt-get install -y openssl && rm -rf /var/lib/apt/lists/*
+RUN pip install --no-cache-dir oauthenticator==17.3.0 dockerspawner==13.0.0
+
+# 2. Create the script (your printf method)
+RUN printf '#!/bin/bash\n\
+set -e\n\
+CERT_DIR="/app/certs"\n\
+mkdir -p "$CERT_DIR"\n\
+CN="${SSL_CN:-10.20.0.28}"\n\
+if [ ! -f "$CERT_DIR/cert.pem" ]; then\n\
+    echo "Generating SSL for $CN..."\n\
+    openssl req -x509 -newkey rsa:4096 -keyout "$CERT_DIR/key.pem" -out "$CERT_DIR/cert.pem" -days 365 -nodes -subj "/CN=$CN"\n\
+fi\n\
+exec "$@"\n' > /usr/local/bin/entrypoint.sh && chmod +x /usr/local/bin/entrypoint.sh
+
+# 3. SET THE ENTRYPOINT (This was the missing piece!)
+ENTRYPOINT ["/usr/local/bin/entrypoint.sh"]
+
+# 4. Default command (passed to the script as "$@")
+CMD ["jupyterhub"]

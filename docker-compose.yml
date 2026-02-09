@@ -1,0 +1,22 @@
+services:
+  jupyterhub:
+    build:
+      context: .
+      dockerfile: Dockerfile.hub
+    container_name: jupyterhub
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - ./jupyterhub_config.py:/srv/jupyterhub/jupyterhub_config.py
+      - ./certs:/app/certs
+      - ./jupyterhub_data:/srv/jupyterhub/data
+    ports:
+      - "8080:8000"
+    env_file:
+      - .env
+    networks:
+      - analytics_net
+
+networks:
+  analytics_net:
+    driver: bridge
+    name: analytics_net

@@ -1,0 +1,28 @@
+FROM python:3.11-slim-bookworm
+
+# System dependencies
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    build-essential git curl libpq-dev \
+    && rm -rf /var/lib/apt/lists/*
+
+# 1. Create user
+RUN useradd -m -s /bin/bash jovyan
+WORKDIR /home/jovyan
+
+RUN mkdir -p /home/jovyan/work && chown jovyan:jovyan /home/jovyan/work
+
+# 2. Install JupyterHub & Lab (ESSENTIAL)
+# Note: The jupyterhub version here should be close to your Hub version (5.4.3)
+RUN pip install --no-cache-dir jupyterhub==5.4.3 jupyterlab
+
+# 3. Install your specific requirements
+COPY requirements.txt .
+RUN pip install --no-cache-dir -r requirements.txt
+
+USER jovyan
+
+ENTRYPOINT []
+
+
+# 4. Correct Command
+CMD ["jupyterhub-singleuser"]
