@@ -9,6 +9,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 RUN useradd -m -s /bin/bash jovyan
 WORKDIR /home/jovyan
 
+
 RUN mkdir -p /home/jovyan/work && chown jovyan:jovyan /home/jovyan/work
 
 # 2. Install JupyterHub & Lab (ESSENTIAL)
@@ -18,6 +19,10 @@ RUN pip install --no-cache-dir jupyterhub==5.4.3 jupyterlab
 # 3. Install your specific requirements
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
+
+# 4. Copy default workspace into the image
+COPY workspaces/default/ /home/jovyan/work/
+RUN chown -R jovyan:jovyan /home/jovyan/work
 
 USER jovyan
 
