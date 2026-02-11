@@ -13,6 +13,7 @@ async def pre_spawn_hook(spawner):
     username = spawner.user.name
     safe_username = clean_username(username)
 
+    # Paths inside the JupyterHub container (for file operations)
     hub_data_path = Path('/srv/jupyterhub/data')
     hub_workspaces_path = Path('/srv/jupyterhub/workspaces')
     user_dir = hub_data_path / safe_username
@@ -20,39 +21,42 @@ async def pre_spawn_hook(spawner):
 
     spawner.log.info(f"Pre-spawn hook for user: {username} (sanitized: {safe_username})")
 
-    # Check if new user (directory doesn't exist or is empty)
-    is_new_user = not user_dir.exists() or not any(user_dir.iterdir())
+    # HOST_DATA_PATH must be an absolute Windows path like: C:/dev/jupyterhub-local/jupyterhub_data
+    # This is required because DockerSpawner mounts volumes from the HOST perspective
+    host_data_path = os.environ.get('HOST_DATA_PATH')
+    if not host_data_path:
+        raise ValueError("HOST_DATA_PATH environment variable must be set to an absolute Windows path (e.g., C:/dev/jupyterhub-local/jupyterhub_data)")
 
-    if is_new_user:
-        spawner.log.info(f"Initializing new user directory for {safe_username}")
-        user_dir.mkdir(parents=True, exist_ok=True)
+    # Ensure forward slashes for Docker on Windows
+    host_data_path = host_data_path.replace('\\', '/')
 
-        # Copy default workspace contents
-        if default_workspace.exists():
-            spawner.log.info(f"Copying default workspace from {default_workspace}")
-            for item in default_workspace.iterdir():
-                dest = user_dir / item.name
-                if item.is_dir():
-                    shutil.copytree(item, dest)
-                else:
-                    shutil.copy2(item, dest)
-            spawner.log.info("Default workspace copied successfully")
-        else:
-            spawner.log.warning(f"Default workspace not found at {default_workspace}")
+    spawner.volumes = {
+        f'{host_data_path}/{safe_username}': '/home/jovyan/work'
+    }
+    spawner.log.info(f"Volume mount: {host_data_path}/{safe_username} -> /home/jovyan/work")
 
-        # Set ownership to jovyan user (UID 1000, GID 100)
-        try:
-            for root, dirs, files in os.walk(user_dir):
-                os.chown(root, 1000, 100)
-                for d in dirs:
-                    os.chown(os.path.join(root, d), 1000, 100)
-                for f in files:
-                    os.chown(os.path.join(root, f), 1000, 100)
-            spawner.log.info(f"Permissions set for {safe_username}")
-        except OSError as e:
-            spawner.log.warning(f"Could not set ownership (expected on Windows): {e}")
+    # Ensure user directory exists
+    user_dir.mkdir(parents=True, exist_ok=True)
+
+    # Always copy default workspace (tutorials) - overwrites existing files
+    if default_workspace.exists():
+        spawner.log.info(f"Copying default workspace from {default_workspace} to {user_dir}")
+        shutil.copytree(default_workspace, user_dir, dirs_exist_ok=True)
+        spawner.log.info("Default workspace copied/updated successfully")
     else:
-        spawner.log.info(f"User directory already exists for {safe_username}")
+        spawner.log.warning(f"Default workspace not found at {default_workspace}")
+
+    # Set ownership to jovyan user (UID 1000, GID 100)
+    try:
+        for root, dirs, files in os.walk(user_dir):
+            os.chown(root, 1000, 100)
+            for d in dirs:
+                os.chown(os.path.join(root, d), 1000, 100)
+            for f in files:
+                os.chown(os.path.join(root, f), 1000, 100)
+        spawner.log.info(f"Permissions set for {safe_username}")
+    except OSError as e:
+        spawner.log.warning(f"Could not set ownership (expected on Windows): {e}")
 
 
 # --- 1. CORE SPAWNER CONFIG ---
@@ -67,14 +71,7 @@ c.DockerSpawner.remove = False
 c.DockerSpawner.use_internal_ip = True
 c.DockerSpawner.network_name = os.environ.get('DOCKER_SPAWNER_NETWORK_NAME', 'analytics_net')
 
-# --- PERSISTENT USER DATA VOLUMES ---
-host_data_path = os.environ.get('HOST_DATA_PATH', './jupyterhub_data')
-c.DockerSpawner.volumes = {
-    f'{host_data_path}/{{username}}': '/home/jovyan/work'
-}
-c.DockerSpawner.format_volume_name = staticmethod(clean_username)
-
-# Register pre-spawn hook
+# Register pre-spawn hook (volumes are set dynamically in the hook)
 c.Spawner.pre_spawn_hook = pre_spawn_hook
 
 

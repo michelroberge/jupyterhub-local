@@ -1,73 +1,42 @@
-#!/usr/bin/env python3
 """
-Script: connect-postgresql.py
-Description: Connects to a PostgreSQL database, loads the table bm010115 into pandas,
-             and performs basic exploratory data analysis with visualizations.
+PostgreSQL connector module.
+Provides get_engine() to create SQLAlchemy engines from credentials/postgres.yaml
 """
 
-import os
+from pathlib import Path
 import yaml
-import pandas as pd
-import numpy as np
-import matplotlib.pyplot as plt
-import seaborn as sns
-import plotly.express as px
-from sqlalchemy import create_engine, text
-from tqdm import tqdm
-from connectors.postgres import get_engine
+from sqlalchemy import create_engine
 
-engine = get_engine("staging")
 
-# ----------------------------
-# Load table into pandas
-# ----------------------------
-schema_name = "integrite_donnee_full"
-table_name = "iv00102"
+def get_engine(connection_name: str):
+    """
+    Create a SQLAlchemy engine for the specified connection.
 
-print(f"Loading table {table_name} from database...")
+    Args:
+        connection_name: Key from credentials/postgres.yaml (e.g., "staging")
 
-df = pd.read_sql_query(f"select * from {schema_name}.{table_name} LIMIT 100", con=engine)
+    Returns:
+        SQLAlchemy Engine connected to the specified PostgreSQL database
+    """
+    # Find credentials file relative to this module's location
+    module_dir = Path(__file__).parent.parent
+    credentials_path = module_dir / "credentials" / "postgres.yaml"
 
-print(f"Table loaded. Shape: {df.shape}")
+    if not credentials_path.exists():
+        raise FileNotFoundError(f"Credentials file not found: {credentials_path}")
 
-# ----------------------------
-# Basic Exploratory Data Analysis
-# ----------------------------
-print("\n--- Data Overview ---")
-print(df.head())
-print("\n--- Data Info ---")
-print(df.info())
-print("\n--- Missing Values ---")
-print(df.isnull().sum())
-print("\n--- Descriptive Statistics ---")
-print(df.describe(include="all"))
+    with open(credentials_path, "r") as f:
+        credentials = yaml.safe_load(f)
 
-# ----------------------------
-# Simple Visualizations
-# ----------------------------
+    if connection_name not in credentials:
+        available = list(credentials.keys())
+        raise KeyError(f"Connection '{connection_name}' not found. Available: {available}")
 
-# Histogram of numeric columns
-numeric_cols = df.select_dtypes(include=np.number).columns.tolist()
-for col in tqdm(numeric_cols, desc="Plotting histograms"):
-    plt.figure()
-    sns.histplot(df[col].dropna(), kde=True)
-    plt.title(f"Distribution of {col}")
-    plt.xlabel(col)
-    plt.ylabel("Count")
-    plt.tight_layout()
-    plt.show()
+    creds = credentials[connection_name]
 
-# Correlation heatmap
-if len(numeric_cols) > 1:
-    plt.figure(figsize=(10, 8))
-    sns.heatmap(df[numeric_cols].corr(), annot=True, fmt=".2f", cmap="coolwarm")
-    plt.title("Correlation Heatmap")
-    plt.tight_layout()
-    plt.show()
+    connection_string = (
+        f"postgresql+psycopg://{creds['username']}:{creds['password']}"
+        f"@{creds['host']}:{creds['port']}/{creds['database']}"
+    )
 
-# Optional: interactive scatter plot with Plotly
-if len(numeric_cols) >= 2:
-    fig = px.scatter(df, x=numeric_cols[0], y=numeric_cols[1], title=f"{numeric_cols[0]} vs {numeric_cols[1]}")
-    fig.show()
-
-print("Analysis complete.")
+    return create_engine(connection_string)

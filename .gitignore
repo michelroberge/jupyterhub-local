@@ -2,3 +2,4 @@ certs/
 data/
 jupyterhub_data/
 .env
+nul

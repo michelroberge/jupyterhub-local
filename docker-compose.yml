@@ -8,10 +8,14 @@ services:
       - /var/run/docker.sock:/var/run/docker.sock
       - ./jupyterhub_config.py:/srv/jupyterhub/jupyterhub_config.py
       - ./certs:/app/certs
-      - ./jupyterhub_data:/srv/jupyterhub/data
-      - ./workspaces:/srv/jupyterhub/workspaces
+      # Persistent user data - bind mount with absolute path
+      # HOST_DATA_PATH must match for both hub access and spawned containers
+      - ${HOST_DATA_PATH}:/srv/jupyterhub/data
+      # Default workspace templates - read-only for copying to new users
+      - ./workspaces:/srv/jupyterhub/workspaces:ro
     environment:
-      - HOST_DATA_PATH=${HOST_DATA_PATH:-./jupyterhub_data}
+      # CRITICAL: Absolute Windows path (forward slashes) e.g., C:/dev/jupyterhub-local/jupyterhub_data
+      - HOST_DATA_PATH=${HOST_DATA_PATH}
     ports:
       - "8080:8000"
     env_file:
