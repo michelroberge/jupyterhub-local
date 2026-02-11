@@ -5,8 +5,9 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     build-essential git curl libpq-dev \
     && rm -rf /var/lib/apt/lists/*
 
-# 1. Create user
-RUN useradd -m -s /bin/bash jovyan
+# 1. Create user with explicit UID/GID for consistent permissions
+RUN groupadd -g 100 jovyan && \
+    useradd -m -s /bin/bash -u 1000 -g 100 jovyan
 WORKDIR /home/jovyan
 
 
@@ -19,10 +20,6 @@ RUN pip install --no-cache-dir jupyterhub==5.4.3 jupyterlab
 # 3. Install your specific requirements
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
-
-# 4. Copy default workspace into the image
-COPY workspaces/default/ /home/jovyan/work/
-RUN chown -R jovyan:jovyan /home/jovyan/work
 
 USER jovyan
 

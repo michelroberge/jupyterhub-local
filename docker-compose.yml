@@ -9,6 +9,9 @@ services:
       - ./jupyterhub_config.py:/srv/jupyterhub/jupyterhub_config.py
       - ./certs:/app/certs
       - ./jupyterhub_data:/srv/jupyterhub/data
+      - ./workspaces:/srv/jupyterhub/workspaces
+    environment:
+      - HOST_DATA_PATH=${HOST_DATA_PATH:-./jupyterhub_data}
     ports:
       - "8080:8000"
     env_file:
